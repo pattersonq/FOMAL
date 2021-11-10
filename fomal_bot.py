@@ -145,7 +145,7 @@ def start(update, context):
         update.message.reply_text(text)
 
     except IndexError as e:
-        print(e)
+        print('index{e}'.format(e=e))
     except KeyError as k:
         print(k)
 
