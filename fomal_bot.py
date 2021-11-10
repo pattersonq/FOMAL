@@ -144,8 +144,10 @@ def start(update, context):
             text += ' Old one was removed.'
         update.message.reply_text(text)
 
-    except (IndexError, ValueError):
-        update.message.reply_text('Usage: /set <seconds>')
+    except IndexError as e:
+        print(e)
+    except KeyError as k:
+        print(k)
 
 def unset(update,context) -> None:
     """Remove the job if the user changed their mind."""
