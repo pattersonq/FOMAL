@@ -156,8 +156,8 @@ def main():
     # Start the Bot
     updater.start_webhook(listen="0.0.0.0",
                           port=8443,
-                          url_path=config.heroku_token)
-    updater.bot.setWebhook('https://fomal.herokuapp.com/' + config.heroku_token)
+                          url_path=config.heroku_token,
+                          webhook_url='https://fomal.herokuapp.com/' + config.heroku_token)
 
     # Run the bot until you press Ctrl-C or the process receives SIGINT,
     # SIGTERM or SIGABRT. This should be used most of the time, since
