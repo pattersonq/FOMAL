@@ -142,7 +142,7 @@ def main():
 
     queue = updater.job_queue
 
-    queue.run_repeating(top_ten_satoshi_bot, interval=60*30, 
+    queue.run_repeating(top_ten_satoshi_bot(), interval=60*30, 
             first=datetime.time(hour=8), 
             last=datetime.time(hour=22))
 
