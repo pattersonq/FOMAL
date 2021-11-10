@@ -54,6 +54,7 @@ def top_ten_satoshi_bot(update, context):
     limit = 10
     words = []
 
+    update.message.reply_text('Analyzing... Give me 5-10 minutes, I am still slow AF')
 
     sum_comments = 0
 
@@ -64,14 +65,12 @@ def top_ten_satoshi_bot(update, context):
             continue
         if i==0: 
             continue
-        print('sub: {number}'.format(number = i))
         for j, comment in enumerate(submission.comments):
             if isinstance(comment, MoreComments):
                 continue
             words += comment.body.split()
         words += submission.selftext.split()
-        
-        print(j)
+
         sum_comments += j
 
         cryptos = []
@@ -93,10 +92,6 @@ def top_ten_satoshi_bot(update, context):
                     flair = 'High Market Cap'
                 crypto_in = word + flair #Counter cannot hash lists
                 cryptos.append(crypto_in.replace(" ", "_"))
-            
-                    
-            
-    print(sum_comments)
 
     cryptos_dict = Counter(cryptos)
     new_dict = {}
@@ -118,12 +113,11 @@ def top_ten_satoshi_bot(update, context):
 
     top_ten_cryptos = sorted(cryptos_dict.items(), key=lambda x:-x[1])[:10]
 
-
-    for key, value in top_ten_cryptos:
-        print('{key}: {value}'.format(key=key, value=value))
-
     for key, value in top_ten_cryptos:
         update.message.reply_text('{key}: {value}'.format(key=key, value=value))
+    
+    update.message.reply_text('{i} posts analyzed'.format(i=i))
+    update.message.reply_text('{sum_comments} comments analyzed'.format(sum_comments=sum_comments))
 
 
 def help(update, context):
