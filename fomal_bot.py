@@ -135,7 +135,7 @@ def start(update, context):
 
         queue = context.job_queue
 
-        queue.run_repeating(top_ten_satoshi_bot, context=chat_id, update=update, interval=3600, 
+        queue.run_repeating(top_ten_satoshi_bot, context=chat_id, interval=3600, 
             first=datetime.time(hour=8), 
             last=datetime.time(hour=22))
 
