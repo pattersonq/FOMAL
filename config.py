@@ -1,0 +1,7 @@
+username = 'pedrosa200051'
+password = 'Psdlmg2000'
+id = 'dMOq0Dx_YjZqBIjm262JbQ'
+token = 'flXNPdl5aLFxhghWFWxGHlchUtca9g'
+telegram_token = '2135273093:AAFk-DP1Vt7XcYtV2xiswLplKhLxgADJjEY'
+cmc_token = '9d010208-e823-416f-86d0-5e234ac3f962'
+heroku_token = '828970c7-852c-48bf-ac26-43e5ce02a3c5'
