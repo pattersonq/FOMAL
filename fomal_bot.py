@@ -16,7 +16,7 @@ import coinmarketcapapi
 import config
 import os
 
-PORT = int(os.environ.get('PORT', 5000))
+PORT = int(os.environ.get('PORT', 88))
 
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
