@@ -171,12 +171,6 @@ def main():
     # Get the dispatcher to register handlers
     dp = updater.dispatcher
 
-    queue = updater.job_queue
-
-    queue.run_repeating(CommandHandler("top_ten_satoshi", top_ten_satoshi_bot), interval=60*30, 
-            first=datetime.time(hour=8), 
-            last=datetime.time(hour=22))
-
     # on different commands - answer in Telegram
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CommandHandler("top_ten_satoshi", top_ten_satoshi_bot))
