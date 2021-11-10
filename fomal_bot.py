@@ -15,6 +15,7 @@ import pandas as pd
 import coinmarketcapapi
 import config
 import os
+import datetime
 
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
@@ -122,7 +123,7 @@ def top_ten_satoshi_bot(update, context):
 
 def help(update, context):
     """Send a message when the command /help is issued."""
-    update.message.reply_text('Help!')
+    update.message.reply_text('/start, /top_ten_satoshi')
 
 def error(update, context):
     """Log Errors caused by Updates."""
@@ -138,6 +139,12 @@ def main():
     port = os.getenv('PORT', 8443)
     # Get the dispatcher to register handlers
     dp = updater.dispatcher
+
+    queue = updater.job_queue
+
+    queue.run_repeating(top_ten_satoshi_bot, interval=60*30, 
+            first=datetime.time(hour=8), 
+            last=datetime.time(hour=22))
 
     # on different commands - answer in Telegram
     dp.add_handler(CommandHandler("start", start))
