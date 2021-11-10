@@ -16,8 +16,6 @@ import coinmarketcapapi
 import config
 import os
 
-PORT = int(os.environ.get('PORT', 88))
-
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
 # Enable logging
@@ -157,7 +155,7 @@ def main():
 
     # Start the Bot
     updater.start_webhook(listen="0.0.0.0",
-                          port=int(PORT),
+                          port=8443,
                           url_path=config.heroku_token)
     updater.bot.setWebhook('https://fomal.herokuapp.com/' + config.heroku_token)
 
