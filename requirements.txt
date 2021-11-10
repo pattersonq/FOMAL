@@ -6,3 +6,4 @@ praw
 progress
 python_coinmarketcap
 python_telegram-bot
+urllib3>=1.10
