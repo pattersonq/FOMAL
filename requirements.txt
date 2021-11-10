@@ -1,7 +1,7 @@
 coinmarketcapapi
 matplotlib
 numpy
-panda
+pandas
 praw
 progress
 python_coinmarketcap
