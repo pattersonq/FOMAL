@@ -141,7 +141,7 @@ def main():
     # Make sure to set use_context=True to use the new context based callbacks
     # Post version 12 this will no longer be necessary
     updater = Updater(config.telegram_token, use_context=True)
-
+    port = os.getenv('PORT', 8443)
     # Get the dispatcher to register handlers
     dp = updater.dispatcher
 
@@ -155,7 +155,7 @@ def main():
 
     # Start the Bot
     updater.start_webhook(listen="0.0.0.0",
-                          port=8443,
+                          port=port,
                           url_path=config.heroku_token,
                           webhook_url='https://fomal.herokuapp.com/' + config.heroku_token)
 
