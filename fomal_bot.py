@@ -113,9 +113,9 @@ def top_ten_satoshi_bot(update, context):
     update.message.reply_text('{i} posts analyzed'.format(i=i))
     update.message.reply_text('{sum_comments} comments analyzed'.format(sum_comments=sum_comments))
 
-def remove_job_if_exists(context) -> bool:
+def remove_job_if_exists(name, context) -> bool:
     """Remove job with given name. Returns whether job was removed."""
-    current_jobs = context.job_queue
+    current_jobs = context.job_queue.get_jobs_by_name(name)
     if not current_jobs:
         return False
     for job in current_jobs:
@@ -128,12 +128,14 @@ def remove_job_if_exists(context) -> bool:
 def start(update, context):
     """Send a message when the command /start is issued."""
     update.message.reply_text('Hi!, starting the analysis process')
+    chat_id = update.message.chat_id
+
     try:
-        job_removed = remove_job_if_exists(context)
+        job_removed = remove_job_if_exists(str(chat_id), context)
 
         queue = context.job_queue
 
-        queue.run_repeating(top_ten_satoshi_bot, context=context, update=update, interval=3600, 
+        queue.run_repeating(top_ten_satoshi_bot, context=chat_id, update=update, interval=3600, 
             first=datetime.time(hour=8), 
             last=datetime.time(hour=22))
 
