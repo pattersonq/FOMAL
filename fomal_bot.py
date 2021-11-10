@@ -25,13 +25,6 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 
 logger = logging.getLogger(__name__)
 
-
-# Define a few command handlers. These usually take the two arguments update and
-# context. Error handlers also receive the raised TelegramError object in error.
-def start(update, context):
-    """Send a message when the command /start is issued."""
-    update.message.reply_text('Hi!')
-
 def top_ten_satoshi_bot(update, context):
     fomal = praw.Reddit(
     client_id = config.id,
@@ -120,6 +113,44 @@ def top_ten_satoshi_bot(update, context):
     update.message.reply_text('{i} posts analyzed'.format(i=i))
     update.message.reply_text('{sum_comments} comments analyzed'.format(sum_comments=sum_comments))
 
+def remove_job_if_exists(context) -> bool:
+    """Remove job with given name. Returns whether job was removed."""
+    current_jobs = context.job_queue
+    if not current_jobs:
+        return False
+    for job in current_jobs:
+        job.schedule_removal()
+    return True
+
+
+# Define a few command handlers. These usually take the two arguments update and
+# context. Error handlers also receive the raised TelegramError object in error.
+def start(update, context):
+    """Send a message when the command /start is issued."""
+    update.message.reply_text('Hi!, starting the analysis process')
+    try:
+        job_removed = remove_job_if_exists(context)
+
+        queue = context.job_queue
+
+        queue.run_repeating(top_ten_satoshi_bot, context=context, update=update, interval=3600, 
+            first=datetime.time(hour=8), 
+            last=datetime.time(hour=22))
+
+        text = 'Timer successfully set!'
+        if job_removed:
+            text += ' Old one was removed.'
+        update.message.reply_text(text)
+
+    except (IndexError, ValueError):
+        update.message.reply_text('Usage: /set <seconds>')
+
+def unset(update,context) -> None:
+    """Remove the job if the user changed their mind."""
+    chat_id = update.message.chat_id
+    job_removed = remove_job_if_exists(str(chat_id), context)
+    text = 'Timer successfully cancelled!' if job_removed else 'You have no active timer.'
+    update.message.reply_text(text)
 
 def help(update, context):
     """Send a message when the command /help is issued."""
@@ -149,6 +180,7 @@ def main():
     # on different commands - answer in Telegram
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CommandHandler("top_ten_satoshi", top_ten_satoshi_bot))
+    dp.add_handler(CommandHandler("unset", unset))
     dp.add_handler(CommandHandler("help", help))
 
     # log all errors
