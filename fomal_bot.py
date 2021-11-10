@@ -155,7 +155,7 @@ def main():
 
     # Start the Bot
     updater.start_webhook(listen="0.0.0.0",
-                          port=8443,
+                          port=80,
                           url_path=config.heroku_token,
                           webhook_url='https://fomal.herokuapp.com/' + config.heroku_token)
 
