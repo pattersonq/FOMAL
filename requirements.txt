@@ -1,10 +1,12 @@
 coinmarketcapapi
 matplotlib
 numpy
-pandas
 praw
-progress
 python_coinmarketcap
 python_telegram-bot
 urllib3>=1.10
 datetime
+time
+pandas
+psycopg2
+pytz

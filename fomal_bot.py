@@ -1,23 +1,18 @@
 import logging
-from re import sub
 from time import timezone
-from typing import Set
 from praw import reddit
 import praw
 from collections import Counter
 import numpy as np
 import matplotlib.pyplot as plt
 from praw.models import MoreComments
-from progress.bar import Bar
-from pprint import pprint
-from inspect import getmembers
-from types import FunctionType
-import pandas as pd
-import coinmarketcapapi
-import config
+from praw.models.reddit.message import Message
+from config import Config
 import os
 import datetime
 import pytz
+import pandas as pd
+from database import Db_manager
 
 from telegram import Update
 from telegram.ext import Updater, CommandHandler, CallbackContext
@@ -28,27 +23,28 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 
 logger = logging.getLogger(__name__)
 
+
 def top_ten_satoshi(context):
     fomal = praw.Reddit(
-    client_id = config.id,
-    client_secret = config.token,
-    user_agent = config.username
+    client_id = Config.id,
+    client_secret = Config.token,
+    user_agent = Config.username
 )
 
     context.bot.send_message(text='Analyzing... Give me 5-10 minutes, I am still slow AF', chat_id=context.job.context)
+
+    # Connect database
+    db = Db_manager()
+
+    pd_crypto = pd.DataFrame(db.select_db(), columns=['names', 'symbols'])
+
+    db.disconnect_db()
     
-    cmc = coinmarketcapapi.CoinMarketCapAPI(config.cmc_token)
-    data_id_map = cmc.cryptocurrency_map()
-    cryptos_list_names = []
-    cryptos_list_symbols = []
+    cryptos_list_names = pd_crypto['names']
 
-    pd_crypto = pd.DataFrame(data_id_map.data, columns = ['name','symbol'])
+    for crypto in cryptos_list_names:
+        crypto.replace(" ", "_")
 
-    for crypto in pd_crypto['name'].tolist():
-        cryptos_list_names.append(crypto.replace(" ", "_"))
-
-    for crypto in pd_crypto['symbol'].tolist():
-        cryptos_list_symbols.append(crypto.replace(" ","_"))
 
     cryptos = []
     words = []
@@ -84,7 +80,7 @@ def top_ten_satoshi(context):
                 crypto_in = word + flair
                 cryptos.append(crypto.replace(" ", "_"))
 
-            elif(word in cryptos_list_symbols):
+            elif(word in pd_crypto['symbols']):
                 if 'low' in submission.link_flair_text:
                     flair = 'Low Market Cap'
                 else:
@@ -103,14 +99,21 @@ def top_ten_satoshi(context):
                         cryptos_dict.pop(sub_key, None)
                         new_dict.push({key: key,
                                 value: value})
+
                 elif sub_key in pd_crypto['name']:
                     if pd_crypto.set_index('symbol').at[sub_key, 'name'] in key:
                         value = cryptos_dict[key] + cryptos_dict[sub_key]
                         cryptos_dict.pop(sub_key, None)
                         new_dict.push({key: key,
                                 value: value})
-    print(cryptos_dict.keys, cryptos_dict.values)
-    top_ten_cryptos = sorted(cryptos_dict.items(), key=lambda x:-x[1])[:10]
+                        
+    print(new_dict.keys, new_dict.values)
+    top_ten_cryptos = sorted(new_dict.items(), key=lambda x:-x[1])[:10]
+
+    message = ''
+
+    for crypto, value in top_ten_cryptos:
+        message += '{}: {}'.format(crypto, value)
 
     for key, value in top_ten_cryptos:
         print('{key}: {value}'.format(key=key, value=value))
@@ -118,6 +121,8 @@ def top_ten_satoshi(context):
     
     context.bot.send_message(chat_id=context.job.context ,text='{i} posts analyzed'.format(i=i))
     context.bot.send_message(chat_id=context.job.context ,text='{sum_comments} comments analyzed'.format(sum_comments=sum_comments))
+
+    
 
 def top_ten_satoshi_direct(update, context):
         context.job_queue.run_once(top_ten_satoshi, 0, context=update.message.chat_id)
@@ -222,11 +227,16 @@ def main():
     # Create the Updater and pass it your bot's token.
     # Make sure to set use_context=True to use the new context based callbacks
     # Post version 12 this will no longer be necessary
-    updater = Updater(config.telegram_token, use_context=True)
-    j= updater.job_queue
+    updater = Updater(Config.telegram_token, use_context=True)
     port = os.getenv('PORT', 8443)
     # Get the dispatcher to register handlers
     dp = updater.dispatcher
+
+    # Connect database
+    db = Db_manager()
+    if db.is_empty:
+        db.populate_db()
+    db.disconnect_db
 
     # on different commands - answer in Telegram
     dp.add_handler(CommandHandler("start", start))
@@ -244,8 +254,9 @@ def main():
     # Start the Bot
     updater.start_webhook(listen="0.0.0.0",
                           port=port,
-                          url_path=config.heroku_token,
-                          webhook_url='https://fomal.herokuapp.com/' + config.heroku_token)
+                          url_path=Config.heroku_token,
+                          webhook_url='https://fomal.herokuapp.com/' + Config.heroku_token)
+
 
     # Run the bot until you press Ctrl-C or the process receives SIGINT,
     # SIGTERM or SIGABRT. This should be used most of the time, since
