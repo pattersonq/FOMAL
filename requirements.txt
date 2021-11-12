@@ -6,7 +6,6 @@ python_coinmarketcap
 python_telegram-bot
 urllib3
 datetime
-time
 pandas
 psycopg2
 pytz
