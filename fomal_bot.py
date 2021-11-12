@@ -28,7 +28,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 
 logger = logging.getLogger(__name__)
 
-def top_ten_satoshi_bot(context):
+def top_ten_satoshi(context):
     fomal = praw.Reddit(
     client_id = config.id,
     client_secret = config.token,
@@ -57,7 +57,7 @@ def top_ten_satoshi_bot(context):
 
     interesting_flairs = ['Moonshot (low market cap)  🚀', 'Big Cap Coin']
         
-    for i, submission in enumerate(fomal.subreddit("SatoshiStreetBets").hot(limit=10)):
+    for i, submission in enumerate(fomal.subreddit("SatoshiStreetBets").hot(limit=None)):
         if submission.link_flair_text not in interesting_flairs:
             continue
         if i==0: 
@@ -116,6 +116,9 @@ def top_ten_satoshi_bot(context):
     context.bot.send_message(chat_id=context.job.context ,text='{i} posts analyzed'.format(i=i))
     context.bot.send_message(chat_id=context.job.context ,text='{sum_comments} comments analyzed'.format(sum_comments=sum_comments))
 
+def top_ten_satoshi_direct(update, context):
+        context.job_queue.run_once(top_ten_satoshi, 0, context=update.message.chat_id)
+
 def remove_job_if_exists(update, context) -> bool:
     """Remove job with given name. Returns whether job was removed."""
     current_jobs = context.job_queue.jobs()
@@ -171,21 +174,20 @@ def set_timer(update: Update, context: CallbackContext):
 
     if now.hour >= first.hour:
         update.message.reply_text('Not implemented yet, problems with timezones, start_hour must be later')
-
-    print(60*(first.minute-now.minute))
-    print(60*(last.minute-now.minute))
+        return
 
     chat_id = update.message.chat_id
-    '''context.job_queue.run_custom(stupid_hello, context=chat_id,
-                                job_kwargs={'trigger': 'interval',
-                                'start_date': first,
-                                'end_date': last,
-                                'seconds': int(context.args[0])
-                                })'''
-    context.job_queue.run_repeating(top_ten_satoshi_bot, interval = 60*int(context.args[0]),
-                                    first=3600*(first.hour-now.hour)-60*(now.minute),
-                                    last=3600*(last.hour-now.hour)-60*(now.minute),
+    
+    context.job_queue.run_repeating(top_ten_satoshi, interval = 60*int(context.args[0]),
+                                    first=(3600*(first.hour-now.hour)-60*(now.minute)),
+                                    last=(3600*(last.hour-now.hour)-60*(now.minute)),
                                     context=chat_id)
+    #For debugging purposes only
+    '''context.job_queue.run_repeating(stupid_hello, interval=int(context.args[0]), context=chat_id)'''
+    '''context.job_queue.run_repeating(stupid_hello, interval = int(context.args[0]),
+                                    first=(60*((now.minute-first.minute) if now.minute >= first.minute else (first.minute -now.minute))),
+                                    last=(60*((now.minute-last.minute) if now.minute >= last.minute else (last.minute -now.minute))),
+                                    context=chat_id)'''
 
     text = 'Timer successfully set! from {start} to {finish} every {mins} minutes'.format(start=int(context.args[1]), finish=int(context.args[2]), mins=int(context.args[0]))
     if job_removed:
@@ -225,7 +227,7 @@ def main():
 
     # on different commands - answer in Telegram
     dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(CommandHandler("top_ten_satoshi", top_ten_satoshi_bot))
+    dp.add_handler(CommandHandler("top_ten_satoshi", top_ten_satoshi_direct))
     dp.add_handler(CommandHandler("set_timer", set_timer, pass_job_queue=True))
     dp.add_handler(CommandHandler("unset", unset))
     dp.add_handler(CommandHandler("help", help))
@@ -234,13 +236,13 @@ def main():
     dp.add_error_handler(error)
 
     # Start bot for local usasation
-    '''updater.start_polling()'''
+    updater.start_polling()
 
     # Start the Bot
-    updater.start_webhook(listen="0.0.0.0",
+    '''updater.start_webhook(listen="0.0.0.0",
                           port=port,
                           url_path=config.heroku_token,
-                          webhook_url='https://fomal.herokuapp.com/' + config.heroku_token)
+                          webhook_url='https://fomal.herokuapp.com/' + config.heroku_token)'''
 
     # Run the bot until you press Ctrl-C or the process receives SIGINT,
     # SIGTERM or SIGABRT. This should be used most of the time, since
