@@ -233,7 +233,7 @@ def main():
     # log all errors
     dp.add_error_handler(error)
 
-    # Start bot for local usage
+    # Start bot for local usasation
     '''updater.start_polling()'''
 
     # Start the Bot
