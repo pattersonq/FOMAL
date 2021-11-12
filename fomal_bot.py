@@ -1,5 +1,6 @@
 import logging
 from re import sub
+from time import timezone
 from typing import Set
 from praw import reddit
 import praw
@@ -16,9 +17,10 @@ import coinmarketcapapi
 import config
 import os
 import datetime
+import pytz
 
 from telegram import Update
-from telegram.ext import Updater, CommandHandler, CallbackContext, Job, JobQueue
+from telegram.ext import Updater, CommandHandler, CallbackContext
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -124,7 +126,8 @@ def remove_job_if_exists(update, context) -> bool:
     return True
 
 def stupid_hello(context):
-    context.bot.send_message(chat_id=context.job.context ,text='Hello World')
+    job = context.job
+    context.bot.send_message(chat_id=job.context ,text='Hello World')
 
 
 # Define a few command handlers. These usually take the two arguments update and
@@ -158,21 +161,31 @@ def set_timer(update: Update, context: CallbackContext):
     job_removed = remove_job_if_exists(update, context)
     
     now = datetime.datetime.now()
+    now.replace(tzinfo=pytz.timezone('Europe/Madrid'))
     first = datetime.datetime(year=now.year, month=now.month,
                                 day=now.day, hour=int(context.args[1]),
-                                minute=0, second=0)
+                                minute=0, second=0, tzinfo=now.tzinfo)
     last = datetime.datetime(year=now.year, month=now.month,
                                 day=now.day, hour=int(context.args[2]),
-                                minute=0, second=0)
-    print(str(first))
-    print(str(last))                 
+                                minute=0, second=0, tzinfo=now.tzinfo)              
 
-    context.job_queue.run_repeating(stupid_hello, 60*int(context.args[0]), 
-        context=update.message.chat_id,
-        first=first,
-        last=last)
-    for job in context.job_queue.jobs():
-        print(job)
+    if now.hour >= first.hour:
+        update.message.reply_text('Not implemented yet, problems with timezones, start_hour must be later')
+
+    print(60*(first.minute-now.minute))
+    print(60*(last.minute-now.minute))
+
+    chat_id = update.message.chat_id
+    '''context.job_queue.run_custom(stupid_hello, context=chat_id,
+                                job_kwargs={'trigger': 'interval',
+                                'start_date': first,
+                                'end_date': last,
+                                'seconds': int(context.args[0])
+                                })'''
+    context.job_queue.run_repeating(top_ten_satoshi_bot, interval = 60*int(context.args[0]),
+                                    first=3600*(first.hour-now.hour)-60*(now.minute),
+                                    last=3600*(last.hour-now.hour)-60*(now.minute),
+                                    context=chat_id)
 
     text = 'Timer successfully set! from {start} to {finish} every {mins} minutes'.format(start=int(context.args[1]), finish=int(context.args[2]), mins=int(context.args[0]))
     if job_removed:
@@ -205,38 +218,34 @@ def main():
     # Make sure to set use_context=True to use the new context based callbacks
     # Post version 12 this will no longer be necessary
     updater = Updater(config.telegram_token, use_context=True)
-
+    j= updater.job_queue
     port = os.getenv('PORT', 8443)
     # Get the dispatcher to register handlers
     dp = updater.dispatcher
 
-    # Create job queue
-    jobs = JobQueue()
-
     # on different commands - answer in Telegram
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CommandHandler("top_ten_satoshi", top_ten_satoshi_bot))
-    dp.add_handler(CommandHandler("set_timer", set_timer))
+    dp.add_handler(CommandHandler("set_timer", set_timer, pass_job_queue=True))
     dp.add_handler(CommandHandler("unset", unset))
     dp.add_handler(CommandHandler("help", help))
 
     # log all errors
     dp.add_error_handler(error)
 
-    '''# Start bot for local usage
-    updater.start_polling()'''
+    # Start bot for local usage
+    updater.start_polling()
 
-    # Start the Bot
+    '''# Start the Bot
     updater.start_webhook(listen="0.0.0.0",
                           port=port,
                           url_path=config.heroku_token,
-                          webhook_url='https://fomal.herokuapp.com/' + config.heroku_token)
+                          webhook_url='https://fomal.herokuapp.com/' + config.heroku_token)'''
 
     # Run the bot until you press Ctrl-C or the process receives SIGINT,
     # SIGTERM or SIGABRT. This should be used most of the time, since
     # start_polling() is non-blocking and will stop the bot gracefully.
     updater.idle()
-
 
 if __name__ == '__main__':
     main()
