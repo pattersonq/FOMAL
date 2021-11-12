@@ -22,7 +22,7 @@ class Db_manager():
                 print(error_db)
     def is_empty(self):
         self.cur.execute(
-            SQL("SELECT * FROM coins")
+            ("SELECT * FROM coins")
         )
         foo =  self.cur.fetchone()
         return not foo
@@ -55,18 +55,18 @@ class Db_manager():
         values = [",".join(cryptos_list_names), ",".join(cryptos_list_symbols)]
         for column, value in [columns, values]:
             self.cur.execute(
-                SQL("INSERT INTO coins ({coin_name}) VALUES {values};").format(coin_name = column, values = value)
+                ("INSERT INTO coins ({coin_name}) VALUES {values};").format(coin_name = column, values = value)
                 )
         self.is_populated = True
     
     def select_db(self):
         '''returns names and symbols as list'''
         self.cur.execute(
-            SQL("SELECT name FROM coins")
+            ("SELECT name FROM coins")
         )
         names = self.cur.fetchall().split(",")
         self.cur.execute(
-            SQL("SELECT symbol FROM coins")
+            ("SELECT symbol FROM coins")
         )
         symbols = self.cur.fetchall().split(",")
 
