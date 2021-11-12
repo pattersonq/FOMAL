@@ -1,6 +1,4 @@
 import logging
-from time import timezone
-from praw import reddit
 import praw
 from collections import Counter
 import numpy as np
