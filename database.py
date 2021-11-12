@@ -52,7 +52,7 @@ class Db_manager():
             cryptos_list_symbols.append(crypto.replace(" ","_"))
         #Populate database
         columns = ['names', 'symbols']
-        values = [cryptos_list_names.join(","), cryptos_list_symbols.join(",")]
+        values = [",".join(cryptos_list_names), ",".join(cryptos_list_symbols)]
         for column, value in [columns, values]:
             self.cur.execute(
                 SQL("INSERT INTO coins ({coin_name}) VALUES {values};").format(coin_name = column, values = value)
