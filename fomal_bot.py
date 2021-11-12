@@ -17,7 +17,8 @@ import config
 import os
 import datetime
 
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+from telegram import Update
+from telegram.ext import Updater, CommandHandler, CallbackContext, Job, JobQueue
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -25,12 +26,15 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 
 logger = logging.getLogger(__name__)
 
-def top_ten_satoshi_bot(update, context):
+def top_ten_satoshi_bot(context):
     fomal = praw.Reddit(
     client_id = config.id,
     client_secret = config.token,
     user_agent = config.username
 )
+
+    context.bot.send_message(text='Analyzing... Give me 5-10 minutes, I am still slow AF', chat_id=context.job.context)
+    
     cmc = coinmarketcapapi.CoinMarketCapAPI(config.cmc_token)
     data_id_map = cmc.cryptocurrency_map()
     cryptos_list_names = []
@@ -45,16 +49,13 @@ def top_ten_satoshi_bot(update, context):
         cryptos_list_symbols.append(crypto.replace(" ","_"))
 
     cryptos = []
-    limit = 10
     words = []
-
-    update.message.reply_text('Analyzing... Give me 5-10 minutes, I am still slow AF')
 
     sum_comments = 0
 
     interesting_flairs = ['Moonshot (low market cap)  🚀', 'Big Cap Coin']
         
-    for i, submission in enumerate(fomal.subreddit("SatoshiStreetBets").hot(limit=None)):
+    for i, submission in enumerate(fomal.subreddit("SatoshiStreetBets").hot(limit=10)):
         if submission.link_flair_text not in interesting_flairs:
             continue
         if i==0: 
@@ -108,57 +109,90 @@ def top_ten_satoshi_bot(update, context):
     top_ten_cryptos = sorted(cryptos_dict.items(), key=lambda x:-x[1])[:10]
 
     for key, value in top_ten_cryptos:
-        update.message.reply_text('{key}: {value}'.format(key=key, value=value))
+        context.bot.send_message(chat_id=context.job.context ,text='{key}: {value}'.format(key=key, value=value))
     
-    update.message.reply_text('{i} posts analyzed'.format(i=i))
-    update.message.reply_text('{sum_comments} comments analyzed'.format(sum_comments=sum_comments))
+    context.bot.send_message(chat_id=context.job.context ,text='{i} posts analyzed'.format(i=i))
+    context.bot.send_message(chat_id=context.job.context ,text='{sum_comments} comments analyzed'.format(sum_comments=sum_comments))
 
-def remove_job_if_exists(name, context) -> bool:
+def remove_job_if_exists(update, context) -> bool:
     """Remove job with given name. Returns whether job was removed."""
-    current_jobs = context.job_queue.get_jobs_by_name(name)
+    current_jobs = context.job_queue.jobs()
     if not current_jobs:
         return False
     for job in current_jobs:
         job.schedule_removal()
     return True
 
+def stupid_hello(context):
+    context.bot.send_message(chat_id=context.job.context ,text='Hello World')
+
 
 # Define a few command handlers. These usually take the two arguments update and
 # context. Error handlers also receive the raised TelegramError object in error.
-def start(update, context):
+def set_timer(update: Update, context: CallbackContext):
     """Send a message when the command /start is issued."""
-    update.message.reply_text('Hi!, starting the analysis process')
-    chat_id = update.message.chat_id
+    if len(context.args) != 3:
+        update.message.reply_text('You need to introduce 3 numbers, interval, start_hour, finish_hour')
+        update.message.reply_text('For example: /set_timer 30 9 22')
+        update.message.reply_text('Would call the bot every 30 minutes, from 9 to 22 hours')
+        return
+    
+    for i in range(2):
+        if int(context.args[i]) <= 0:
+            update.message.reply_text('We do not support going back in time, yet')
+            update.message.reply_text('Try with positive numbers')
+            return
+    if int(context.args[1]) >= int(context.args[2]):
+        update.message.reply_text('The starting hour goes before the finish hour: interval start finish')
+        update.message.reply_text('If you meant it that way... not implemented yet')
 
-    try:
-        job_removed = remove_job_if_exists(str(chat_id), context)
+    if not 1 <= int(context.args[0]) <= 1440:
+        update.message.reply_text('Interval not valid')
+        return
+    for i in range(2)[1:]:
+        if not 0 <= int(context.args[i]) <= 24:
+            update.message.reply_text('Hour not valid, must be 0-24')
+            return
+    
+    update.message.reply_text('Hi! setting timer')
+    job_removed = remove_job_if_exists(update, context)
+    
+    now = datetime.datetime.now()
+    first = datetime.datetime(year=now.year, month=now.month,
+                                day=now.day, hour=int(context.args[1]),
+                                minute=0, second=0)
+    last = datetime.datetime(year=now.year, month=now.month,
+                                day=now.day, hour=int(context.args[2]),
+                                minute=0, second=0)
+    print(str(first))
+    print(str(last))                 
 
-        queue = context.job_queue
+    context.job_queue.run_repeating(stupid_hello, 60*int(context.args[0]), 
+        context=update.message.chat_id,
+        first=first,
+        last=last)
+    for job in context.job_queue.jobs():
+        print(job)
 
-        queue.run_repeating(top_ten_satoshi_bot, context=chat_id, interval=25*60, 
-            first=datetime.time(hour=8), 
-            last=datetime.time(hour=22))
+    text = 'Timer successfully set! from {start} to {finish} every {mins} minutes'.format(start=int(context.args[1]), finish=int(context.args[2]), mins=int(context.args[0]))
+    if job_removed:
+        text += ' Old one was removed.'
+    update.message.reply_text(text)
 
-        text = 'Timer successfully set!'
-        if job_removed:
-            text += ' Old one was removed.'
-        update.message.reply_text(text)
+def start(update, context):
+    update.message.reply_text('Hi!')
 
-    except IndexError as e:
-        print('index{e}'.format(e=e))
-    except KeyError as k:
-        print(k)
-
-def unset(update,context) -> None:
+def unset(update: Update,context: CallbackContext) -> None:
     """Remove the job if the user changed their mind."""
-    chat_id = update.message.chat_id
-    job_removed = remove_job_if_exists(str(chat_id), context)
-    text = 'Timer successfully cancelled!' if job_removed else 'You have no active timer.'
+    job_removed = remove_job_if_exists(update, context)
+    text = 'Timer successfully cancelled!' if job_removed else 'You have no active timer'
     update.message.reply_text(text)
 
 def help(update, context):
     """Send a message when the command /help is issued."""
-    update.message.reply_text('/start, /top_ten_satoshi')
+    update.message.reply_text('/start, /set_timer, /unset')
+    update.message.reply_text('For example: /set_timer 30 9 22')
+
 
 def error(update, context):
     """Log Errors caused by Updates."""
@@ -171,18 +205,26 @@ def main():
     # Make sure to set use_context=True to use the new context based callbacks
     # Post version 12 this will no longer be necessary
     updater = Updater(config.telegram_token, use_context=True)
+
     port = os.getenv('PORT', 8443)
     # Get the dispatcher to register handlers
     dp = updater.dispatcher
 
+    # Create job queue
+    jobs = JobQueue()
+
     # on different commands - answer in Telegram
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CommandHandler("top_ten_satoshi", top_ten_satoshi_bot))
+    dp.add_handler(CommandHandler("set_timer", set_timer))
     dp.add_handler(CommandHandler("unset", unset))
     dp.add_handler(CommandHandler("help", help))
 
     # log all errors
     dp.add_error_handler(error)
+
+    '''# Start bot for local usage
+    updater.start_polling()'''
 
     # Start the Bot
     updater.start_webhook(listen="0.0.0.0",
