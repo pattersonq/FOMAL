@@ -52,6 +52,8 @@ def top_ten_satoshi(context):
 
     cryptos = []
     words = []
+    i = 0
+    j = 0
 
     sum_comments = 0
 
@@ -107,10 +109,11 @@ def top_ten_satoshi(context):
                         cryptos_dict.pop(sub_key, None)
                         new_dict.push({key: key,
                                 value: value})
-
+    print(cryptos_dict.keys, cryptos_dict.values)
     top_ten_cryptos = sorted(cryptos_dict.items(), key=lambda x:-x[1])[:10]
 
     for key, value in top_ten_cryptos:
+        print('{key}: {value}'.format(key=key, value=value))
         context.bot.send_message(chat_id=context.job.context ,text='{key}: {value}'.format(key=key, value=value))
     
     context.bot.send_message(chat_id=context.job.context ,text='{i} posts analyzed'.format(i=i))
