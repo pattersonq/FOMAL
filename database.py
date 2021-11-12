@@ -1,6 +1,7 @@
 import psycopg2
 import coinmarketcapapi
 from config import Config, Psql_cred
+import pandas as pd
 
 class Db_manager():
 
@@ -25,7 +26,7 @@ class Db_manager():
         )
         foo =  self.cur.fetchone()
         return not foo
-        
+
     def disconnect_db(self):
         try:
             self.cur.close()
@@ -38,12 +39,20 @@ class Db_manager():
 
     def populate_db(self):
         cmc = coinmarketcapapi.CoinMarketCapAPI(Config.cmc_token)
-        info = cmc.info()
-        names = info.slug
-        symbols = info.symbols
-        columns = ['coin_name', 'symbol']
-        values = [names, symbols]
+        data_id_map = cmc.cryptocurrency_map()
+        cryptos_list_names = []
+        cryptos_list_symbols = []
+
+        pd_crypto = pd.DataFrame(data_id_map.data, columns = ['name','symbol'])
+
+        for crypto in pd_crypto['name'].tolist():
+            cryptos_list_names.append(crypto.replace(" ", "_"))
+
+        for crypto in pd_crypto['symbol'].tolist():
+            cryptos_list_symbols.append(crypto.replace(" ","_"))
         #Populate database
+        columns = ['names', 'symbols']
+        values = [cryptos_list_names.join(","), cryptos_list_symbols.join(",")]
         for column, value in [columns, values]:
             self.cur.execute(
                 SQL("INSERT INTO coins ({coin_name}) VALUES {values};").format(coin_name = column, values = value)
