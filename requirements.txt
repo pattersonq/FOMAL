@@ -7,5 +7,5 @@ python_telegram-bot
 urllib3
 datetime
 pandas
-psycopg2
+psycopg2-binary
 re
