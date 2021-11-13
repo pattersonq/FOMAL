@@ -2,6 +2,8 @@ import psycopg2
 import coinmarketcapapi
 from config import Config, Psql_cred
 import pandas as pd
+import re
+from psycopg2.extras import execute_values
 
 class Db_manager():
 
@@ -18,6 +20,18 @@ class Db_manager():
             self.conn = psycopg2.connect("dbname={db_name} user={user} password={password} host={host} port={port}".format(db_name=db_name, user=user, password=password, host=host, port=port))
             self.cur = self.conn.cursor()
 
+        except (Exception, psycopg2.DatabaseError) as error_db:
+                print(error_db)
+        try:
+            self.cur.execute(
+                ("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'coins');")
+            )
+            foo = self.cur.fetchone()
+            print(foo)
+            if not foo[0]:
+                self.cur.execute(
+                ("CREATE TABLE coins(symbol varchar(40), coin_name varchar(100));")
+            )
         except (Exception, psycopg2.DatabaseError) as error_db:
                 print(error_db)
     def is_empty(self):
@@ -45,19 +59,19 @@ class Db_manager():
 
         pd_crypto = pd.DataFrame(data_id_map.data, columns = ['name','symbol'])
 
-        for crypto in pd_crypto['name'].tolist():
-            cryptos_list_names.append(crypto.replace(" ", "_"))
+        #solo acepta aquellas que empiezan por letra y tan solo contienen letras y numeros
+        pattern = re.compile(r'^[A-Za-z]+[0-9]*[A-Z]*[a-z]*$')
+        cryptos_dict = pd_crypto.to_dict(orient='list')
+        values_list = []
+        sql = "INSERT INTO coins(symbol, coin_name) VALUES %s"
+        for crypto in pd_crypto.itertuples():
+            values = (getattr(crypto, 'symbol'), getattr(crypto, 'name'))
+            values_list.append(values)
 
-        for crypto in pd_crypto['symbol'].tolist():
-            cryptos_list_symbols.append(crypto.replace(" ","_"))
-        #Populate database
-        columns = ['names', 'symbols']
-        values = [",".join(cryptos_list_names), ",".join(cryptos_list_symbols)]
-        for column, value in [columns, values]:
-            self.cur.execute(
-                ("INSERT INTO coins ({coin_name}) VALUES {values};").format(coin_name = column, values = value)
-                )
-        self.is_populated = True
+        execute_values(self.cur, sql, values_list)
+        '''
+        args_str = ','.join(self.cur.mogrify("(%s,%s)",symbol,name) for symbol,name in pd_crypto)
+        self.is_populated = True'''
     
     def select_db(self):
         '''returns names and symbols as list'''

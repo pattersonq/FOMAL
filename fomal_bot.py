@@ -52,6 +52,10 @@ def top_ten_satoshi(context):
     sum_comments = 0
 
     interesting_flairs = ['Moonshot (low market cap)  🚀', 'Big Cap Coin']
+    '''sentiment=[] #lista con tuplas de cuenta de palabras bull, bear y coin 
+
+    bull_keywords = ['up', 'rise', 'moon', 'rich', 'gem', 'bull', 'bullish', 'pump']
+    bear_keywords = ['down', 'fall', 'dump', 'poor', 'bear']''' #still thinking about it
         
     for i, submission in enumerate(fomal.subreddit("SatoshiStreetBets").hot(limit=None)):
         if submission.link_flair_text not in interesting_flairs:
@@ -65,8 +69,7 @@ def top_ten_satoshi(context):
         words += submission.selftext.split()
 
         sum_comments += j
-
-        cryptos = []
+        
         for word in words:
             if word[0] == '$':
                 word = word[1:]
@@ -108,6 +111,7 @@ def top_ten_satoshi(context):
     print(new_dict.keys, new_dict.values)
     top_ten_cryptos = sorted(new_dict.items(), key=lambda x:-x[1])[:10]
 
+    sentiment_percentage = []
     message = ''
 
     for crypto, value in top_ten_cryptos:
