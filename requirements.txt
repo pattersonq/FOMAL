@@ -8,5 +8,4 @@ urllib3
 datetime
 pandas
 psycopg2
-pytz
 re

@@ -8,7 +8,6 @@ from praw.models.reddit.message import Message
 from config import Config
 import os
 import datetime
-import pytz
 import pandas as pd
 from database import Db_manager
 
