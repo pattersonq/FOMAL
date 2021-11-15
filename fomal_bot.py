@@ -178,6 +178,7 @@ def async_update(db):
         if last_exist:
             sql = "SELECT last_date, last_time FROM last_modified"
             res = db.select_db(sql)
+            print(res)
             last_date = datetime.date.fromisoformat(res[0][0])
             last_time = datetime.time.fromisoformat(res[1][0])
             last = datetime.datetime.combine(last_date, last_time)

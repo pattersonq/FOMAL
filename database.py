@@ -101,7 +101,9 @@ class Db_manager():
                 Column('last_date', Date),
                 Column('last_time', Time)
             )
-            sql = "INSERT INTO last_modified(last_date, last_time) VALUES ({});".format(datetime.datetime.now().strftime("'%Y-%m-%d', '%H:%M:%S'"))
+            now = datetime.datetime.now()
+            hora = datetime.time(hour=now.hour,minute=now.minute,second=now.second)
+            sql = "INSERT INTO last_modified(last_date, last_time) VALUES ({}, {});".format(datetime.date.today().strftime("'%Y-%m-%d'"), hora.strftime("'%H:%M:%S'"))
             self.lock.acquire()
             self.connect_db()
             pd_coins.to_sql('top_ten_satoshi', con = self.engine, if_exists='replace')
