@@ -1,89 +1,151 @@
+import datetime
+from logging import config
+from os import replace
+from numpy import dtype
+from numpy.lib.function_base import append
+from pandas.core.indexes.base import Index
 import psycopg2
 import coinmarketcapapi
 from config import Config, Psql_cred
 import pandas as pd
-import re
+import numpy as np
 from psycopg2.extras import execute_values
+import threading
+from sqlalchemy import create_engine, Table, Column, MetaData, Date, Time
+
 
 class Db_manager():
 
     def __init__(self) -> None:  
-        conn = None
-        curr = None
-        db_name= Psql_cred.db_name
-        user= Psql_cred.user
-        password= Psql_cred.password
-        host= Psql_cred.host
-        port= Psql_cred.port
-        #connect database
-        try:
-            self.conn = psycopg2.connect("dbname={db_name} user={user} password={password} host={host} port={port}".format(db_name=db_name, user=user, password=password, host=host, port=port))
-            self.cur = self.conn.cursor()
+        self.conn = None
+        self.cur = None
+        self.engine = create_engine(Psql_cred.uri, echo=False)
+        self.db_name= Psql_cred.db_name
+        self.user= Psql_cred.user
+        self.password= Psql_cred.password
+        self.host= Psql_cred.host
+        self.port= Psql_cred.port
+        self.sem_db = threading.BoundedSemaphore(value=4)
+        self.is_connected = False
+        self.lock = threading.RLock()
 
-        except (Exception, psycopg2.DatabaseError) as error_db:
-                print(error_db)
+    def connect_db(self):
+        if self.is_connected: 
+            return
         try:
-            self.cur.execute(
-                ("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'coins');")
-            )
-            foo = self.cur.fetchone()
-            print(foo)
-            if not foo[0]:
-                self.cur.execute(
-                ("CREATE TABLE coins(symbol varchar(40), coin_name varchar(100));")
-            )
+            self.conn = psycopg2.connect("dbname={db_name} user={user} password={password} host={host} port={port}".format(db_name=self.db_name, user=self.user, password=self.password, host=self.host, port=self.port))
+            self.cur = self.conn.cursor()
         except (Exception, psycopg2.DatabaseError) as error_db:
                 print(error_db)
+        self.is_connected = True
+
+    def create_table_coins(self):
+        cmc = coinmarketcapapi.CoinMarketCapAPI(Config.cmc_token)
+        data_id_map = cmc.cryptocurrency_map()
+
+        pd_crypto = pd.DataFrame(data_id_map.data, columns = ['name','symbol'])
+        with self.sem_db:
+            try:
+                self.connect_db()
+                pd_crypto.to_sql('coins', con = self.engine, if_exists='replace')
+            finally:
+                self.disconnect_db()
+
     def is_empty(self):
-        self.cur.execute(
-            ("SELECT * FROM coins")
-        )
+        with self.sem_db:
+            try:
+                self.connect_db()
+                self.cur.execute(
+                    ("SELECT * FROM coins")
+                )
+            finally:
+                self.disconnect_db()
         foo =  self.cur.fetchone()
         return not foo
 
     def disconnect_db(self):
         try:
+            self.is_connected = False
             self.cur.close()
         except (Exception, psycopg2.DatabaseError) as error_db:
                 print(error_db)
         finally:
                 if self.conn is not None:
                     self.conn.close()
-
-
-    def populate_db(self):
-        cmc = coinmarketcapapi.CoinMarketCapAPI(Config.cmc_token)
-        data_id_map = cmc.cryptocurrency_map()
-        cryptos_list_names = []
-        cryptos_list_symbols = []
-
-        pd_crypto = pd.DataFrame(data_id_map.data, columns = ['name','symbol'])
-
-        #solo acepta aquellas que empiezan por letra y tan solo contienen letras y numeros
-        pattern = re.compile(r'^[A-Za-z]+[0-9]*[A-Z]*[a-z]*$')
-        cryptos_dict = pd_crypto.to_dict(orient='list')
-        values_list = []
-        sql = "INSERT INTO coins(symbol, coin_name) VALUES %s"
-        for crypto in pd_crypto.itertuples():
-            values = (getattr(crypto, 'symbol'), getattr(crypto, 'name'))
-            values_list.append(values)
-
-        execute_values(self.cur, sql, values_list)
-        '''
-        args_str = ','.join(self.cur.mogrify("(%s,%s)",symbol,name) for symbol,name in pd_crypto)
-        self.is_populated = True'''
+    #cambiar
+    def get_data(self):
+        '''returns names and symbols as pd.dataframe'''
+        with self.sem_db:
+            try:
+                self.connect_db()
+                sql = "SELECT name, symbol FROM coins"
+                pd_dataframe = pd.read_sql(sql,con=self.engine)
+            finally:
+                self.disconnect_db()
+        
+        return pd_dataframe
     
-    def select_db(self):
-        '''returns names and symbols as list'''
-        self.cur.execute(
-            ("SELECT name FROM coins")
-        )
-        names = self.cur.fetchall().split(",")
-        self.cur.execute(
-            ("SELECT symbol FROM coins")
-        )
-        symbols = self.cur.fetchall().split(",")
+    #Updates new data coming for mentions to give it back without calculating
+    def modify_db(self, dict):
+        '''Hay que cambiarla para que no solo modifique esto'''
+        pd_coins = pd.DataFrame.from_dict(dict, dtype = str, orient='index', columns = ['symbol', 'mentions'])
+        self.lock.acquire()
+        self.connect_db()
+        self.cur.execute("select exists(select * from information_schema.tables where table_name=%s)", ('last_modified',))
+        last_exist = self.cur.fetchone()[0]
+        self.lock.release()
+        if not last_exist:
+            meta = MetaData()
+            last_modified = Table(
+                'last_modified', meta,
+                Column('last_date', Date),
+                Column('last_time', Time)
+            )
+            sql = "INSERT INTO last_modified(last_date, last_time) VALUES ({});".format(datetime.datetime.now().strftime("'%Y-%m-%d', '%H:%M:%S'"))
+            self.lock.acquire()
+            self.connect_db()
+            pd_coins.to_sql('top_ten_satoshi', con = self.engine, if_exists='replace')
+            meta.create_all(self.engine)
+            self.cur.execute(sql)
+            self.disconnect_db()
+            self.lock.release()
+        
+        else:
+            sql="UPDATE last_modified SET last = CURRENT_DATE;"
+            self.lock.acquire()
+            self.connect_db()
+            pd_coins.to_sql('top_ten_satoshi', con = self.engine, if_exists='replace')
+            self.cur.execute(sql)
+            self.disconnect_db()
+            self.lock.release()
 
-        return names, symbols
         
+
+    def fetch_db(self):
+        '''returns names and mentions as lists'''
+
+        self.lock.acquire()
+        self.connect_db()
+        self.cur.execute(
+            ("SELECT symbol, mentions FROM top_ten_satoshi")
+        )
+        sql = self.cur.fetchall()
+        self.disconnect_db()
+        self.lock.acquire()
+
+        pd_dataframe = pd.read_sql(sql,con=self.engine)
+        pd_dataframe.columns = ['name', 'symbol']
         
+        return pd_dataframe['name'], pd_dataframe['symbol']
+
+    def select_db(self, sql):
+        self.lock.acquire()
+        self.connect_db()
+        self.cur.execute(sql)
+        ret = self.cur.fetchall()
+        self.disconnect_db()
+        self.lock.release()
+        return ret
+
+        
+

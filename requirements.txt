@@ -8,4 +8,3 @@ urllib3
 datetime
 pandas
 psycopg2-binary
-
