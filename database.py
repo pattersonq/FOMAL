@@ -4,14 +4,18 @@ from os import replace
 from numpy import dtype
 from numpy.lib.function_base import append
 from pandas.core.indexes.base import Index
+from pandas.io.sql import execute
 import psycopg2
 import coinmarketcapapi
+from sqlalchemy.sql.sqltypes import DateTime, Integer
 from config import Config, Psql_cred
 import pandas as pd
 import numpy as np
 from psycopg2.extras import execute_values
 import threading
-from sqlalchemy import create_engine, Table, Column, MetaData, Date, Time
+from sqlalchemy import create_engine, Table, Column, MetaData, ForeignKey
+from sqlalchemy.orm import relationship
+from sqlalchemy.ext.declarative import declarative_base
 
 
 class Db_manager():
@@ -28,6 +32,7 @@ class Db_manager():
         self.sem_db = threading.BoundedSemaphore(value=4)
         self.is_connected = False
         self.lock = threading.RLock()
+        self.is_empty = False
 
     def connect_db(self):
         if self.is_connected: 
@@ -39,29 +44,44 @@ class Db_manager():
                 print(error_db)
         self.is_connected = True
 
-    def create_table_coins(self):
+    def insert_coins(self):
         cmc = coinmarketcapapi.CoinMarketCapAPI(Config.cmc_token)
         data_id_map = cmc.cryptocurrency_map()
 
-        pd_crypto = pd.DataFrame(data_id_map.data, columns = ['name','symbol'])
-        with self.sem_db:
-            try:
-                self.connect_db()
-                pd_crypto.to_sql('coins', con = self.engine, if_exists='replace')
-            finally:
-                self.disconnect_db()
+        print("metiendo datos")
 
-    def is_empty(self):
-        with self.sem_db:
-            try:
-                self.connect_db()
-                self.cur.execute(
-                    ("SELECT * FROM coins")
-                )
-            finally:
-                self.disconnect_db()
+        pd_crypto = pd.DataFrame(data_id_map.data, columns = ['name','symbol'])
+        
+        self.sem_db.acquire()
+        self.connect_db()
+        pd_crypto.to_sql('coins', con = self.engine, if_exists='append', index=False)
+        self.sem_db.release()
+        self.disconnect_db()
+        print("datos metidos")
+
+    def is_empty_check(self):
+        sql = "select exists(select * from coins);"
+        self.sem_db.acquire()
+        self.connect_db()
+        self.cur.execute(
+            (sql)
+        )
         foo =  self.cur.fetchone()
-        return not foo
+        self.disconnect_db()
+        self.sem_db.release()
+        return not foo[0]
+
+    def has_worked(self):
+        sql = "select exists(select * from top_ten_satoshi);"
+        self.sem_db.acquire()
+        self.connect_db()
+        self.cur.execute(
+            (sql)
+        )
+        foo =  self.cur.fetchone()[0]
+        self.disconnect_db()
+        self.sem_db.release()
+        return foo
 
     def disconnect_db(self):
         try:
@@ -72,73 +92,59 @@ class Db_manager():
         finally:
                 if self.conn is not None:
                     self.conn.close()
-    #cambiar
-    def get_data(self):
-        '''returns names and symbols as pd.dataframe'''
-        with self.sem_db:
-            try:
-                self.connect_db()
-                sql = "SELECT name, symbol FROM coins"
-                pd_dataframe = pd.read_sql(sql,con=self.engine)
-            finally:
-                self.disconnect_db()
-        
-        return pd_dataframe
     
     #Updates new data coming for mentions to give it back without calculating
-    def modify_db(self, dict):
-        '''Hay que cambiarla para que no solo modifique esto'''
-        pd_coins = pd.DataFrame.from_dict(dict, dtype = str, orient='index', columns = ['symbol', 'mentions'])
+    def insert_top_ten(self, list):
+        '''Hay que cambiarla para que no solo modifique satoshi, list es lista de duplas'''
+        sql_symbol = "INSERT INTO top_ten_satoshi(symbol) VALUES ('{}')"
+        sql_mentions = "INSERT INTO top_ten_satoshi(mentions) VALUES ('{}')"
+        
         self.lock.acquire()
         self.connect_db()
-        self.cur.execute("select exists(select * from information_schema.tables where table_name=%s)", ('last_modified',))
-        last_exist = self.cur.fetchone()[0]
+        for row in list:
+            self.cur.execute(sql_symbol.format(row[0]))
+            self.cur.execute(sql_mentions.format(row[1]))
+        self.disconnect_db()
         self.lock.release()
-        if not last_exist:
-            meta = MetaData()
-            last_modified = Table(
-                'last_modified', meta,
-                Column('last_date', Date),
-                Column('last_time', Time)
-            )
-            now = datetime.datetime.now()
-            hora = datetime.time(hour=now.hour,minute=now.minute,second=now.second)
-            sql = "INSERT INTO last_modified(last_date, last_time) VALUES ({}, {});".format(datetime.date.today().strftime("'%Y-%m-%d'"), hora.strftime("'%H:%M:%S'"))
-            self.lock.acquire()
-            self.connect_db()
-            pd_coins.to_sql('top_ten_satoshi', con = self.engine, if_exists='replace')
-            meta.create_all(self.engine)
-            self.cur.execute(sql)
-            self.disconnect_db()
-            self.lock.release()
-        
-        else:
-            sql="UPDATE last_modified SET last = CURRENT_DATE;"
-            self.lock.acquire()
-            self.connect_db()
-            pd_coins.to_sql('top_ten_satoshi', con = self.engine, if_exists='replace')
-            self.cur.execute(sql)
-            self.disconnect_db()
-            self.lock.release()
-
-        
 
     def fetch_db(self):
-        '''returns names and mentions as lists'''
+        '''returns names and symbols as pd.DataFrame'''
 
         self.lock.acquire()
         self.connect_db()
         self.cur.execute(
-            ("SELECT symbol, mentions FROM top_ten_satoshi")
+            ("SELECT name, symbol FROM coins;")
         )
         sql = self.cur.fetchall()
         self.disconnect_db()
-        self.lock.acquire()
-
-        pd_dataframe = pd.read_sql(sql,con=self.engine)
-        pd_dataframe.columns = ['name', 'symbol']
+        self.lock.release()
+        coin_name = []
+        coin_symbols = []
+        for row in sql:
+            coin_name.append(row[0])
+            coin_symbols.append(row[1])
         
-        return pd_dataframe['name'], pd_dataframe['symbol']
+        return pd.DataFrame({'name': coin_name, 'symbol': coin_symbols})
+
+
+    def fetch_top_ten_db(self):
+        '''returns names and mentions as pd.DataFrame'''
+
+        self.lock.acquire()
+        self.connect_db()
+        self.cur.execute(
+            ("SELECT symbol, mentions FROM top_ten_satoshi ORDER BY last_mod DESC LIMIT 10;")
+        )
+        sql = self.cur.fetchall()
+        self.disconnect_db()
+        self.lock.release()
+        coin_name = []
+        coin_symbols = []
+        for row in sql:
+            coin_name.append(row[0])
+            coin_symbols.append(row[1])
+        
+        return pd.DataFrame([coin_name, coin_symbols], columns=['name', 'symbol'])
 
     def select_db(self, sql):
         self.lock.acquire()

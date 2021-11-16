@@ -26,10 +26,8 @@ logger = logging.getLogger(__name__)
 def top_ten_satoshi(update, context):
     '''Just gets the data from the db'''
     db = Db_manager()
-    sql = "select exists(select * from information_schema.tables where table_name='{}')".format('top_ten_satoshi',)
-    res = db.select_db(sql)[0][0]
-    if not res:   
-        symbols, mentions = db.fetch_db()           
+    if db.has_worked():   
+        symbols, mentions = db.fetch_top_ten_db()           
             
     else:
         update.message.reply_text("Data is not ready yet, try again in some minutes")
@@ -133,7 +131,7 @@ def error(update, context):
 def top_ten_satoshi_save(context):
     return top_ten_satoshi(context)
     
-
+#work
 def set_global_timer(context, interval):
     context.jobqueue.run_repeating(top_ten_satoshi_save, 3600, 0, 3600*17)
 
@@ -153,13 +151,13 @@ def connect_telegram(db):
     dp.add_error_handler(error)
 
     # Start bot for local usasation
-    '''updater.start_polling()'''
+    updater.start_polling()
 
     # Start the Bot
-    updater.start_webhook(listen="0.0.0.0",
+    '''updater.start_webhook(listen="0.0.0.0",
                           port=port,
                           url_path=Config.heroku_token,
-                          webhook_url='https://fomal.herokuapp.com/' + Config.heroku_token)
+                          webhook_url='https://fomal.herokuapp.com/' + Config.heroku_token)'''
 
     # Run the bot until you press Ctrl-C or the process receives SIGINT,
     # SIGTERM or SIGABRT. This should be used most of the time, since
@@ -168,42 +166,39 @@ def connect_telegram(db):
 
 def async_update(db):
     while(True):
-        now = datetime.datetime.now()
-        h_start = 7
-        h_end = 24
-
-        sql = "select exists(select * from information_schema.tables where table_name= '{}')".format('last_modified',)
-        last_exist = db.select_db(sql)[0][0]
-
-        if last_exist:
-            sql = "SELECT last_date, last_time FROM last_modified"
-            res = db.select_db(sql)
+        while(db.is_empty):
+            time.sleep(5)
+        if db.has_worked():
+            sql = "SELECT last_mod FROM top_ten_satoshi ORDER BY last_mod DESC LIMIT 1"
+            res = db.select_db(sql)[0][0]
             print(res)
-            last_date = datetime.date.fromisoformat(res[0][0])
-            last_time = datetime.time.fromisoformat(res[1][0])
-            last = datetime.datetime.combine(last_date, last_time)
+            tz = res.tzinfo
+            if not (datetime.datetime.now(tz=tz) - res).total_seconds() < 1800:
+                db.insert_top_ten(top_ten_satoshi_(db.fetch_db()))
 
-            if not (datetime.datetime.now() - last).total_seconds() < 1800:
-                db.modify_db(top_ten_satoshi_())
-                time.sleep(3600)
             else:
-                time.sleep(1800)
+                time.sleep(60)
         else:
-            res = top_ten_satoshi_(db)
-            db.modify_db(res)
-            print("Analisis acabado")
+            db.insert_top_ten(top_ten_satoshi_(db.fetch_db()))
             time.sleep(3600)
-
-
+            
 def main():
     # Connect database
     db = Db_manager()
-    db.create_table_coins()
+
+    #trabajo: mirar hace cuanto se actualizo
+    if db.is_empty_check():
+        db.insert_coins()
     
+    thread_queue = []
     t_async = threading.Thread(target=async_update, args=[db])
+    t_async.daemon = True
     t_async.start()
+    thread_queue.append(t_async)
     connect_telegram(db)
-    t_async.join()
+    
+    for thread in thread_queue:
+        thread.join()
     
 
 if __name__ == '__main__':

@@ -8,9 +8,9 @@ class Config():
     heroku_token = '828970c7-852c-48bf-ac26-43e5ce02a3c5'
 
 class Psql_cred():
-    host = 'ec2-52-204-72-14.compute-1.amazonaws.com'
-    db_name = 'd2ge7ipherp8mc'
-    user = 'cqnytvdtchbgvs'
+    host = 'ec2-23-23-162-138.compute-1.amazonaws.com'
+    db_name = 'db288p5i1ait3b'
+    user = 'vgptqqpkycmfee'
     port = '5432'
-    password = '8a1026ca921f35b84bf534e7de3e028400ef1c52897f48b31ebe16f1c27a468f'
-    uri = 'postgresql://cqnytvdtchbgvs:8a1026ca921f35b84bf534e7de3e028400ef1c52897f48b31ebe16f1c27a468f@ec2-52-204-72-14.compute-1.amazonaws.com:5432/d2ge7ipherp8mc'
+    password = '33ee9cd3bd7d027dccb610af2b939dd95d7fd148d8f26d6d8544eafbbcff1b98'
+    uri = 'postgresql://vgptqqpkycmfee:33ee9cd3bd7d027dccb610af2b939dd95d7fd148d8f26d6d8544eafbbcff1b98@ec2-23-23-162-138.compute-1.amazonaws.com:5432/db288p5i1ait3b'

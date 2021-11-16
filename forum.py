@@ -4,37 +4,24 @@ from database import Db_manager
 from praw.models import MoreComments
 from collections import Counter
 
-def top_ten_satoshi_(db):
+def top_ten_satoshi_(pd_crypto):
     '''Does the math'''
     fomal = praw.Reddit(
     client_id = Config.id,
     client_secret = Config.token,
     user_agent = Config.username
 )    
-    pd_crypto = db.get_data()
-    
-    for crypto in pd_crypto['name']:
-        crypto.replace(" ", "_")
-
 
     cryptos = []
-    words = []
     i = 0
     j = 0
 
     sum_comments = 0
 
-    interesting_flairs = ['Moonshot (low market cap)  🚀', 'Big Cap Coin']
-    '''sentiment=[] #lista con tuplas de cuenta de palabras bull, bear y coin 
-
-    bull_keywords = ['up', 'rise', 'moon', 'rich', 'gem', 'bull', 'bullish', 'pump']
-    bear_keywords = ['down', 'fall', 'dump', 'poor', 'bear']''' #still thinking about it
+    common_words = ['the', 'THE', 'gas','GAS', 'hodl', 'HODL', 'fees', 'FEES', 'rise', 'RISE']
         
-    for i, submission in enumerate(fomal.subreddit("SatoshiStreetBets").hot(limit=15)):
-        if submission.link_flair_text not in interesting_flairs:
-            continue
-        if i==0: 
-            continue
+    for i, submission in enumerate(fomal.subreddit("SatoshiStreetBets").top("day")):
+        words = []
         for j, comment in enumerate(submission.comments):
             if isinstance(comment, MoreComments):
                 continue
@@ -46,25 +33,18 @@ def top_ten_satoshi_(db):
         for word in words:
             if word[0] == '$':
                 word = word[1:]
-            if(word in pd_crypto['name']):
-                if 'low' in submission.link_flair_text:
-                    flair = 'Low Market Cap'
-                else:
-                    flair = 'Big Market Cap'
-                crypto_in = word + flair
-                cryptos.append(crypto.replace(" ", "_"))
-
-            elif(word in pd_crypto['symbol']):
-                if 'low' in submission.link_flair_text:
-                    flair = 'Low Market Cap'
-                else:
-                    flair = 'High Market Cap'
-                crypto_in = word + flair #Counter cannot hash lists
-                cryptos.append(crypto_in.replace(" ", "_"))
+                for index, row in pd_crypto.iterrows():
+                    if row['symbol'] == word:
+                        cryptos.append(row['symbol'])
+            else:
+                for index, row in pd_crypto.iterrows():
+                    if (row['name'] == word or row['symbol'] == word) and (not word in common_words):
+                        cryptos.append(row['symbol'])
 
     cryptos_dict = Counter(cryptos)
-    new_dict = {}
-    for key in cryptos_dict.keys():
+    '''new_dict = {}'''
+    #look for duplicated name and symbol being same coin
+    '''for key in cryptos_dict.keys():
         for sub_key in cryptos_dict.keys():
             if key is not sub_key:
                 if sub_key in pd_crypto['symbol']:
@@ -79,7 +59,6 @@ def top_ten_satoshi_(db):
                         value = cryptos_dict[key] + cryptos_dict[sub_key]
                         cryptos_dict.pop(sub_key, None)
                         new_dict.push({key: key,
-                                value: value})
-                        
-    top_ten_cryptos = sorted(new_dict.items(), key=lambda x:-x[1])[:10]
+                                value: value})'''
+    top_ten_cryptos = sorted(cryptos_dict.items(), key=lambda x:-x[1])[:10]
     return top_ten_cryptos

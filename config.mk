@@ -1,7 +1,7 @@
-HOST         = ec2-34-233-112-169.compute-1.amazonaws.com
-DB           = dftki7erm1vd06
-USER         = puetgfuwfphgst
+HOST         = ec2-23-23-162-138.compute-1.amazonaws.com
+DB           = db288p5i1ait3b
+USER         = vgptqqpkycmfee
 PORT         = 5432
-PASSWORD     = 4606eaa355c5c8c0906f422f7a73e76cbf6862edaee6d1b130a94c11c56b1452
-URI          = postgres://puetgfuwfphgst:4606eaa355c5c8c0906f422f7a73e76cbf6862edaee6d1b130a94c11c56b1452@ec2-34-233-112-169.compute-1.amazonaws.com:5432/dftki7erm1vd06
+PASSWORD     = 33ee9cd3bd7d027dccb610af2b939dd95d7fd148d8f26d6d8544eafbbcff1b98
+URI          = postgresql://vgptqqpkycmfee:33ee9cd3bd7d027dccb610af2b939dd95d7fd148d8f26d6d8544eafbbcff1b98@ec2-23-23-162-138.compute-1.amazonaws.com:5432/db288p5i1ait3b
 CREATE_FILE  = sql_files/creation_db.sql
