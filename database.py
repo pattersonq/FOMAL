@@ -48,8 +48,6 @@ class Db_manager():
         cmc = coinmarketcapapi.CoinMarketCapAPI(Config.cmc_token)
         data_id_map = cmc.cryptocurrency_map()
 
-        print("metiendo datos")
-
         pd_crypto = pd.DataFrame(data_id_map.data, columns = ['name','symbol'])
         
         self.sem_db.acquire()
@@ -57,7 +55,6 @@ class Db_manager():
         pd_crypto.to_sql('coins', con = self.engine, if_exists='append', index=False)
         self.sem_db.release()
         self.disconnect_db()
-        print("datos metidos")
 
     def is_empty_check(self):
         sql = "select exists(select * from coins);"
@@ -96,14 +93,14 @@ class Db_manager():
     #Updates new data coming for mentions to give it back without calculating
     def insert_top_ten(self, list):
         '''Hay que cambiarla para que no solo modifique satoshi, list es lista de duplas'''
-        sql_symbol = "INSERT INTO top_ten_satoshi(symbol) VALUES ('{}')"
-        sql_mentions = "INSERT INTO top_ten_satoshi(mentions) VALUES ('{}')"
+        "INSERT INTO top_ten_satoshi(symbol, mentions) VALUES (%s, %s ,%s)"
         
         self.lock.acquire()
         self.connect_db()
         for row in list:
-            self.cur.execute(sql_symbol.format(row[0]))
-            self.cur.execute(sql_mentions.format(row[1]))
+            self.cur.execute("INSERT INTO top_ten_satoshi(symbol, mentions) VALUES (%s, %s);", 
+                (row[0], row[1]))
+        self.conn.commit()
         self.disconnect_db()
         self.lock.release()
 

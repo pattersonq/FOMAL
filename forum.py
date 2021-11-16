@@ -13,8 +13,8 @@ def top_ten_satoshi_(pd_crypto):
 )    
 
     cryptos = []
-    i = 0
     j = 0
+    z = 0
 
     sum_comments = 0
 
@@ -22,6 +22,8 @@ def top_ten_satoshi_(pd_crypto):
         
     for i, submission in enumerate(fomal.subreddit("SatoshiStreetBets").top("day")):
         words = []
+        if z == 2:
+            break
         for j, comment in enumerate(submission.comments):
             if isinstance(comment, MoreComments):
                 continue
@@ -31,6 +33,8 @@ def top_ten_satoshi_(pd_crypto):
         sum_comments += j
         
         for word in words:
+            if z == 2:
+                break
             if word[0] == '$':
                 word = word[1:]
                 for index, row in pd_crypto.iterrows():
@@ -38,8 +42,12 @@ def top_ten_satoshi_(pd_crypto):
                         cryptos.append(row['symbol'])
             else:
                 for index, row in pd_crypto.iterrows():
+                    #hay simbolos en mayusculas y en minusculas
                     if (row['name'] == word or row['symbol'] == word) and (not word in common_words):
                         cryptos.append(row['symbol'])
+                        z+=1
+                        if z == 2:
+                            break
 
     cryptos_dict = Counter(cryptos)
     '''new_dict = {}'''
