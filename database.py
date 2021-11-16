@@ -136,12 +136,12 @@ class Db_manager():
         self.disconnect_db()
         self.lock.release()
         coin_name = []
-        coin_symbols = []
+        coin_mentions = []
         for row in sql:
             coin_name.append(row[0])
-            coin_symbols.append(row[1])
+            coin_mentions.append(row[1])
         
-        return pd.DataFrame([coin_name, coin_symbols], columns=['name', 'symbol'])
+        return pd.DataFrame({'name': coin_name, 'mentions': coin_mentions})
 
     def select_db(self, sql):
         self.lock.acquire()

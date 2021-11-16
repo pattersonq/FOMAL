@@ -27,17 +27,15 @@ def top_ten_satoshi(update, context):
     '''Just gets the data from the db'''
     db = Db_manager()
     if db.has_worked():   
-        symbols, mentions = db.fetch_top_ten_db()           
+        pd_mentions = db.fetch_top_ten_db()           
             
     else:
         update.message.reply_text("Data is not ready yet, try again in some minutes")
         return
-
-    output = io.StringIO()
-    for symbol, mention in [symbols,mentions]:
-        print('{symbol}: {mentions}'.format(symbol=symbol, mentions=mention), file=output)
+    output = ''
+    for index, row in pd_mentions.iterrows():
+        output += '{symbol}: {mentions}\n'.format(symbol=row[0], mentions=row[1])
     update.message.reply_text(output)
-    output.close()
 
 def remove_job_if_exists(update, context) -> bool:
     """Remove job with given name. Returns whether job was removed."""
@@ -151,13 +149,13 @@ def connect_telegram(db):
     dp.add_error_handler(error)
 
     # Start bot for local usasation
-    '''updater.start_polling()'''
+    updater.start_polling()
 
     # Start the Bot
-    updater.start_webhook(listen="0.0.0.0",
+    '''updater.start_webhook(listen="0.0.0.0",
                           port=port,
                           url_path=Config.heroku_token,
-                          webhook_url='https://fomal.herokuapp.com/' + Config.heroku_token)
+                          webhook_url='https://fomal.herokuapp.com/' + Config.heroku_token)'''
 
     # Run the bot until you press Ctrl-C or the process receives SIGINT,
     # SIGTERM or SIGABRT. This should be used most of the time, since
@@ -172,12 +170,15 @@ def async_update(db):
             sql = "SELECT last_mod FROM top_ten_satoshi ORDER BY last_mod DESC LIMIT 1"
             res = db.select_db(sql)[0][0]
             tz = res.tzinfo
-            if not (datetime.datetime.now(tz=tz) - res).total_seconds() < 1800:
+            now = datetime.datetime.now(tz=tz)
+            if not (now - res).total_seconds() < 1800:
+                print("Analisis empezado a: {}", now)
                 db.insert_top_ten(top_ten_satoshi_(db.fetch_db()))
-
+                print("Analisis a {}".format(now))
             else:
                 time.sleep(60)
         else:
+            print("Primer analisis empezado a: {}", datetime.datetime.now())
             db.insert_top_ten(top_ten_satoshi_(db.fetch_db()))
             time.sleep(3600)
             
@@ -187,7 +188,9 @@ def main():
 
     #trabajo: mirar hace cuanto se actualizo
     if db.is_empty_check():
+        print("Insertando Datos")
         db.insert_coins()
+        print("Datos insertados")
     
     thread_queue = []
     t_async = threading.Thread(target=async_update, args=[db])
