@@ -171,7 +171,6 @@ def async_update(db):
         if db.has_worked():
             sql = "SELECT last_mod FROM top_ten_satoshi ORDER BY last_mod DESC LIMIT 1"
             res = db.select_db(sql)[0][0]
-            print(res)
             tz = res.tzinfo
             if not (datetime.datetime.now(tz=tz) - res).total_seconds() < 1800:
                 db.insert_top_ten(top_ten_satoshi_(db.fetch_db()))

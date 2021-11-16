@@ -20,7 +20,7 @@ def top_ten_satoshi_(pd_crypto):
 
     common_words = ['the', 'THE', 'gas','GAS', 'hodl', 'HODL', 'fees', 'FEES', 'rise', 'RISE']
         
-    for i, submission in enumerate(fomal.subreddit("SatoshiStreetBets").top("day")):
+    for i, submission in enumerate(fomal.subreddit("SatoshiStreetBets").top("day", limit=10)):
         words = []
         if z == 2:
             break
