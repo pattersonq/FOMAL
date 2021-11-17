@@ -1,18 +1,13 @@
-import getopt
-import numpy as np
-import matplotlib.pyplot as plt
 from praw.models.reddit.message import Message
 from praw.reddit import Subreddit
 from sqlalchemy.sql.expression import update
-import sys
 import signal
 import datetime
 from libs.fomal_work_db import Db_manager
-from libs.fomal_bot_db import Db_looker
 from libs.fomal_forum import analyze_hour
 import threading
 import time
-from queue import PriorityQueue, Queue
+from queue import PriorityQueue
 from libs.data.config import Fomal_subs
 
 lock_db = threading.Lock()

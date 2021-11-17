@@ -9,4 +9,7 @@ datetime
 pandas
 psycopg2-binary
 sqlalchemy
+time
 english-words
+signal
+threading

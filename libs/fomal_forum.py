@@ -3,8 +3,6 @@ from .data.config import Config
 from praw.models import MoreComments
 from collections import Counter
 from english_words import english_words_set
-import praw
-import time
 import datetime
 from datetime import datetime, timedelta
 

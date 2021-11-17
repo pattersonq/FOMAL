@@ -1,7 +1,6 @@
 import pandas as pd
 import psycopg2
 from .data.config import Psql_cred, Fomal_subs
-import pandas as pd
 import sys
 
 class Db_looker():

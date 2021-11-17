@@ -1,16 +1,8 @@
-import getopt
-import numpy as np
-import matplotlib.pyplot as plt
 from praw.models.reddit.message import Message
 from praw.reddit import Subreddit
 from sqlalchemy.sql.expression import update
-from libs.data.config import Fomal_subs
 import sys
-import datetime
-from libs.fomal_work_db import Db_manager
 from libs.fomal_bot_db import Db_looker
-from libs.fomal_forum import analyze_hour
-import threading
 import time
 from libs.fomal_telegram import Fomal_telegram
             
