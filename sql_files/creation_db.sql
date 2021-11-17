@@ -8,10 +8,11 @@ CREATE TABLE coins(
     PRIMARY KEY(coin_id)
 );
 
-CREATE TABLE top_ten_satoshi(
+CREATE TABLE mentions(
     coin_id int,
     symbol varchar(30),
-    mentions int,
+    n_mentions int,
+    forum varchar(60),
     last_mod TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT coin_mentioned FOREIGN KEY(coin_id) REFERENCES coins(coin_id) ON DELETE CASCADE
 );
