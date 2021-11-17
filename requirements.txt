@@ -10,4 +10,3 @@ pandas
 psycopg2-binary
 sqlalchemy
 english-words
-threading
