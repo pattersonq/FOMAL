@@ -73,10 +73,9 @@ def analyze_hour(pd_crypto, sub = "SatoshiStreetBets"):
                     continue
                 for index, row in pd_crypto.iterrows():
                     #hay simbolos en mayusculas y en minusculas
+                    #quintana dice que minisculas en la db :)
                     if (row['name'].lower() == word.lower() \
-                        or row['symbol'].lower() == word.lower()) \
-                        and (not word in common_words):
-
+                        or row['symbol'].lower() == word.lower()):
                         cryptos.append(row['symbol'])
     
     print('{}, comments: {}, posts: {}, words: {}'.format(sub, sum_comments, i, sum_words))

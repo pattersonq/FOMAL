@@ -82,7 +82,7 @@ def main():
         print("Datos insertados")
 
     subs = Fomal_subs.subs
-    threads_queue = PriorityQueue(len(subs) + 1) # Por si se quiere dar más prioridad a unos subs que a otros
+    threads_queue = PriorityQueue(len(subs)) # Por si se quiere dar más prioridad a unos subs que a otros
     global keep
     keep = True
     async_update(db, subs, threads_queue)

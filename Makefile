@@ -14,6 +14,9 @@ clear_db:
 clear_mentions_db:
 	PGPASSWORD=$(PASSWORD) psql -h $(HOST) -U $(USER) $(DB) -f $(CLEAR_FILE)
 
+insert_db:
+	PGPASSWORD=$(PASSWORD) psql -h $(HOST) -U $(USER) $(DB) -f $(INSERT_FILE)
+
 run_bot:
 	python3 fomal_bot.py True
 
