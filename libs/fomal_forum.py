@@ -31,7 +31,7 @@ def analyze_hour(pd_crypto, sub = "SatoshiStreetBets"):
     '''Does the math, returns list of duples(symbol, mentions)'''
     reddit = praw.Reddit(
     client_id = Config.id,
-    client_secret = Config.token,
+    client_secret = Config.reddit_token,
     user_agent = Config.username
 )    
     i = 0
